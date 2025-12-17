@@ -3,187 +3,151 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI Dashboard Pro 2025</title>
+    <title>AI Commander Pro v2.0</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <style>
-        :root { --bg: #0b0e14; --card: #161b22; --primary: #58a6ff; --accent: #238636; --text: #c9d1d9; }
-        body { background: var(--bg); color: var(--text); font-family: -apple-system, sans-serif; margin: 0; padding: 20px; }
-        .container { max-width: 1000px; margin: auto; padding-bottom: 100px; }
-        .card { background: var(--card); border: 1px solid #30363d; border-radius: 12px; padding: 20px; margin-bottom: 20px; }
-        button { padding: 10px 20px; border-radius: 6px; border: none; cursor: pointer; font-weight: 600; transition: 0.2s; }
-        #fetchBtn { background: var(--primary); color: white; width: 100%; font-size: 16px; }
-        #exportBtn { background: var(--accent); color: white; margin-top: 10px; width: 100%; }
-        pre { background: #0d1117; padding: 15px; border-radius: 8px; color: #7ee787; font-size: 12px; overflow-x: auto; }
+        :root { --bg: #0d1117; --card: #161b22; --primary: #58a6ff; --text: #c9d1d9; --accent: #238636; }
+        body { background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; margin: 0; padding: 20px; }
+        .container { max-width: 900px; margin: auto; padding-bottom: 400px; }
+        .card { background: var(--card); border: 1px solid #30363d; border-radius: 8px; padding: 20px; margin-bottom: 20px; }
         
-        /* Chat Window */
-        #chat-window { position: fixed; bottom: 20px; right: 20px; width: 380px; height: 500px; background: var(--card); border: 1px solid #30363d; border-radius: 12px; display: flex; flex-direction: column; box-shadow: 0 12px 40px rgba(0,0,0,0.6); z-index: 999; }
-        #chat-header { background: #21262d; padding: 12px; font-weight: bold; border-radius: 12px 12px 0 0; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #30363d; }
-        #chat-messages { flex: 1; overflow-y: auto; padding: 15px; display: flex; flex-direction: column; gap: 12px; scroll-behavior: smooth; }
-        .msg { padding: 10px 14px; border-radius: 10px; max-width: 80%; font-size: 14px; line-height: 1.5; word-wrap: break-word; }
+        /* Floating Chat UI */
+        #chat-window { position: fixed; bottom: 20px; right: 20px; width: 380px; height: 500px; background: var(--card); border: 1px solid var(--primary); border-radius: 12px; display: flex; flex-direction: column; z-index: 1000; box-shadow: 0 8px 32px rgba(0,0,0,0.5); }
+        #chat-header { background: #21262d; padding: 12px; font-weight: bold; border-radius: 12px 12px 0 0; display: flex; justify-content: space-between; border-bottom: 1px solid #30363d; }
+        #chat-messages { flex: 1; overflow-y: auto; padding: 15px; display: flex; flex-direction: column; gap: 10px; font-size: 14px; scroll-behavior: smooth; }
+        .msg { padding: 8px 14px; border-radius: 8px; max-width: 85%; line-height: 1.5; word-wrap: break-word; }
         .user-msg { background: #1f6feb; color: white; align-self: flex-end; }
         .ai-msg { background: #30363d; color: var(--text); align-self: flex-start; border: 1px solid #484f58; }
-        .input-area { display: flex; padding: 12px; border-top: 1px solid #30363d; gap: 8px; }
+        .input-box { display: flex; padding: 10px; border-top: 1px solid #30363d; background: #21262d; border-radius: 0 0 12px 12px; }
         input { flex: 1; background: #0d1117; border: 1px solid #30363d; color: white; padding: 10px; border-radius: 6px; }
-        .hidden { display: none; }
+        button { cursor: pointer; border: none; font-weight: bold; border-radius: 6px; transition: 0.2s; }
+        .btn-send { background: var(--primary); color: black; margin-left: 8px; padding: 0 15px; }
     </style>
 </head>
 <body>
 
-<div class="container" id="report-area">
-    <header style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
-        <h2>🚀 AI Data <span style="color:var(--primary)">Commander</span></h2>
-        <a href="/logout" style="color:#f85149; text-decoration:none; font-size:14px;">Log Out</a>
-    </header>
-
-    <div class="card">
-        <label>Pilih Bahasa Laporan:</label>
-        <select id="langSelect" style="width:100%; padding:10px; margin: 10px 0; background:#0d1117; color:white; border-radius:6px; border:1px solid #30363d;">
-            <option value="Indonesia">Indonesia</option>
-            <option value="English">English</option>
-            <option value="Japanese">Japanese</option>
-        </select>
-        <button id="fetchBtn">Mulai Analisis Cerdas</button>
-        <button id="exportBtn" class="hidden">Unduh Laporan PDF</button>
-    </div>
-
-    <div id="ai-card" class="card hidden">
-        <h3 style="color:var(--primary)">🤖 Insight Analis AI</h3>
-        <button onclick="speakText()" style="background:#8b5cf6; color:white; font-size:12px; margin-bottom:10px;">🔊 Bacakan</button>
-        <div id="ai-text" style="white-space: pre-line;"></div>
-    </div>
-
-    <div id="chart-card" class="card hidden">
-        <h3>📊 Visualisasi Tren Data</h3>
-        <canvas id="dataChart" style="max-height: 300px;"></canvas>
+<div class="container" id="main-report">
+    <div style="display:flex; justify-content:space-between; align-items:center;">
+        <h1>🚀 AI <span style="color:var(--primary)">Commander</span></h1>
+        <a href="/logout" style="color:#f85149; text-decoration:none; font-weight:bold;">LOGOUT</a>
     </div>
 
     <div class="card">
-        <h3>📂 Data Mentah (JSON)</h3>
-        <pre id="json-output">Menunggu pengambilan data...</pre>
+        <h3>📊 Real-time Data Visualization</h3>
+        <canvas id="myChart" style="max-height: 300px;"></canvas>
+        <button onclick="exportPDF()" style="width:100%; padding:12px; background:var(--accent); color:white; margin-top:15px;">📥 DOWNLOAD LAPORAN (PDF)</button>
     </div>
 </div>
 
 <div id="chat-window">
     <div id="chat-header">
-        <span>🤖 AI Assistant</span>
-        <button onclick="clearChat()" style="background:transparent; color:#f85149; font-size:11px; padding:0;">Hapus History</button>
+        <span>🤖 AI Researcher (200 Mem)</span>
+        <button onclick="resetMemory()" style="background:#f85149; color:white; font-size:10px; padding:2px 6px;">RESET</button>
     </div>
     <div id="chat-messages"></div>
-    <div class="input-area">
-        <input type="text" id="userInput" placeholder="Tanya tentang data atau ilmu umum...">
-        <button id="sendBtn" style="background:var(--primary); color:black;">Kirim</button>
+    <div class="input-box">
+        <input type="text" id="userInput" placeholder="Tulis pesan atau tanya data...">
+        <button onclick="sendChat()" class="btn-send">KIRIM</button>
     </div>
 </div>
 
 <script>
-    let myChart = null;
+    // Memori 200 Pesan (Sliding Window)
+    let chatContext = JSON.parse(localStorage.getItem('chat_history')) || [
+        { "role": "system", "content": "Good Person" }
+    ];
 
-    // --- LOGIKA HISTORY CHAT ---
-    document.addEventListener('DOMContentLoaded', () => {
-        const history = JSON.parse(localStorage.getItem('chat_history')) || [];
-        history.forEach(item => appendMsg(item.text, item.type, false));
-    });
+    window.onload = () => {
+        loadVisuals();
+        renderChatFromHistory();
+    };
 
-    function saveHistory(text, type) {
-        const history = JSON.parse(localStorage.getItem('chat_history')) || [];
-        history.push({text, type});
-        localStorage.setItem('chat_history', JSON.stringify(history.slice(-50))); // Simpan 50 pesan terakhir
+    function renderChatFromHistory() {
+        const container = document.getElementById('chat-messages');
+        container.innerHTML = '';
+        chatContext.forEach(m => {
+            if(m.role !== 'system') displayMsg(m.content, m.role === 'user' ? 'user-msg' : 'ai-msg');
+        });
     }
 
-    function clearChat() {
-        localStorage.removeItem('chat_history');
-        document.getElementById('chat-messages').innerHTML = '';
-    }
-
-    // --- LOGIKA DASHBOARD ---
-    document.getElementById('fetchBtn').addEventListener('click', async () => {
-        const btn = document.getElementById('fetchBtn');
-        btn.innerText = "AI sedang berpikir..."; btn.disabled = true;
-        
-        try {
-            const res = await fetch(`/process-ai?lang=${document.getElementById('langSelect').value}`);
-            const data = await res.json();
-            
-            if(data.status === 'success') {
-                document.getElementById('ai-card').classList.remove('hidden');
-                document.getElementById('ai-text').innerText = data.ai_insight;
-                document.getElementById('json-output').innerText = JSON.stringify(data.raw_data, null, 2);
-                document.getElementById('exportBtn').classList.remove('hidden');
-                document.getElementById('chart-card').classList.remove('hidden');
-                updateChart(data.raw_data);
-            }
-        } finally {
-            btn.innerText = "Mulai Analisis Cerdas"; btn.disabled = false;
-        }
-    });
-
-    // --- LOGIKA CHAT OTOMATIS ---
     async function sendChat() {
         const input = document.getElementById('userInput');
         const text = input.value.trim();
         if(!text) return;
 
-        appendMsg(text, 'user-msg');
+        displayMsg(text, 'user-msg');
+        chatContext.push({ "role": "user", "content": text });
         input.value = '';
 
-        // Typing indicator
-        const typingId = "typing-" + Date.now();
-        appendMsg("<i>Sedang mencari sumber...</i>", 'ai-msg', false, typingId);
+        // Jaga memori maksimal 200 pesan + 1 system role
+        if(chatContext.length > 201) chatContext.splice(1, 1);
 
-        const res = await fetch('/chat', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({message: text})
-        });
-        const data = await res.json();
-        
-        document.getElementById(typingId).remove();
-        appendMsg(data.reply, 'ai-msg');
-        
-        // Auto-speak chat
-        const utter = new SpeechSynthesisUtterance(data.reply);
-        utter.lang = 'id-ID';
-        window.speechSynthesis.speak(utter);
+        const typingId = "typing-" + Date.now();
+        displayMsg("<i>AI sedang memproses...</i>", "ai-msg", typingId);
+
+        try {
+            const res = await fetch('/chat', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ message: text, messages: chatContext })
+            });
+            const data = await res.json();
+            
+            document.getElementById(typingId).remove();
+            displayMsg(data.reply, 'ai-msg');
+            chatContext.push({ "role": "assistant", "content": data.reply });
+            
+            // Simpan ke Browser LocalStorage
+            localStorage.setItem('chat_history', JSON.stringify(chatContext));
+            
+            // Suara Otomatis (TTS)
+            const speak = new SpeechSynthesisUtterance(data.reply);
+            speak.lang = 'id-ID';
+            window.speechSynthesis.speak(speak);
+
+        } catch (e) {
+            document.getElementById(typingId).innerText = "Gagal memproses permintaan.";
+        }
     }
 
-    function appendMsg(text, type, save = true, id = null) {
+    function displayMsg(text, cls, id = null) {
+        const container = document.getElementById('chat-messages');
         const div = document.createElement('div');
         if(id) div.id = id;
-        div.className = `msg ${type}`;
+        div.className = `msg ${cls}`;
         div.innerHTML = text;
-        const container = document.getElementById('chat-messages');
         container.appendChild(div);
         container.scrollTop = container.scrollHeight;
-        if(save) saveHistory(text, type);
     }
 
-    document.getElementById('sendBtn').addEventListener('click', sendChat);
-    document.getElementById('userInput').addEventListener('keypress', (e) => { if(e.key === 'Enter') sendChat(); });
+    function resetMemory() {
+        if(confirm("Hapus ingatan AI?")) {
+            chatContext = [{ "role": "system", "content": "Good Person" }];
+            localStorage.removeItem('chat_history');
+            renderChatFromHistory();
+        }
+    }
 
-    // --- CHART & PDF ---
-    function updateChart(data) {
-        const ctx = document.getElementById('dataChart').getContext('2d');
-        if(myChart) myChart.destroy();
-        myChart = new Chart(ctx, {
+    function loadVisuals() {
+        const ctx = document.getElementById('myChart').getContext('2d');
+        new Chart(ctx, {
             type: 'bar',
             data: {
-                labels: Object.keys(data).slice(0, 7),
-                datasets: [{ label: 'Statistik Data', data: Object.values(data).map(v => Math.floor(Math.random()*100)), backgroundColor: '#58a6ff' }]
-            },
-            options: { responsive: true, plugins: { legend: { display: false } } }
+                labels: ['Data A', 'Data B', 'Data C', 'Data D', 'Data E'],
+                datasets: [{ label: 'Growth %', data: [65, 59, 80, 81, 56], backgroundColor: '#58a6ff' }]
+            }
         });
     }
 
-    function speakText() {
-        const msg = new SpeechSynthesisUtterance(document.getElementById('ai-text').innerText);
-        msg.lang = 'id-ID';
-        window.speechSynthesis.speak(msg);
+    function exportPDF() {
+        const element = document.getElementById('main-report');
+        html2pdf().from(element).save('AI-Analysis-Report.pdf');
     }
 
-    document.getElementById('exportBtn').addEventListener('click', () => {
-        const element = document.getElementById('report-area');
-        html2pdf().from(element).set({ margin: 10, filename: 'AI-Report.pdf', html2canvas: { scale: 2, backgroundColor: '#0b0e14' } }).save();
+    // Enter Key Listener
+    document.getElementById('userInput').addEventListener('keypress', (e) => {
+        if(e.key === 'Enter') sendChat();
     });
 </script>
 </body>
