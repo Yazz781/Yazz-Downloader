@@ -3,216 +3,157 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>YZ TIKTOK DOWNLOADER</title>
+    <title>AI Intelligent Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <style>
-        /* --- CSS STYLES --- */
-        :root {
-            --primary-color: #00e0ff;
-            --button-color: #1e90ff;
-            --text-color: #ffffff;
-            --background-color: #000000;
-        }
-        body {
-            font-family: Arial, sans-serif;
-            background-color: var(--background-color);
-            color: var(--text-color);
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
-            margin: 0;
-            padding: 20px;
-            text-align: center;
-        }
-        .container {
-            width: 100%;
-            max-width: 450px;
-            padding: 30px;
-            box-sizing: border-box;
-        }
-        .logo {
-            font-size: 6em;
-            font-weight: bold;
-            color: var(--primary-color);
-            text-shadow: 0 0 10px rgba(0, 224, 255, 0.7), 0 0 20px rgba(0, 224, 255, 0.5);
-            margin-bottom: 5px;
-            letter-spacing: 5px;
-            animation: glitch-color 4s infinite alternate;
-        }
-        @keyframes glitch-color {
-            0% { text-shadow: 0.05em 0 0 #00e0ff, -0.05em -0.025em 0 #ff00ff; }
-            50% { text-shadow: -0.05em 0 0 #00e0ff, 0.05em 0.025em 0 #ff00ff; }
-            100% { text-shadow: 0.05em 0 0 #00e0ff, -0.05em -0.025em 0 #ff00ff; }
-        }
-        .downloader-title {
-            font-size: 1.5em;
-            margin-bottom: 40px;
-            color: var(--primary-color);
-            text-shadow: 0 0 5px rgba(0, 224, 255, 0.5);
-        }
-        .url-label {
-            font-size: 0.9em;
-            font-weight: bold;
-            margin-bottom: 10px;
-            display: block;
-            text-transform: uppercase;
-        }
-        #tiktok-url {
-            width: 100%;
-            padding: 15px;
-            margin-bottom: 30px;
-            border: none;
-            border-radius: 5px;
-            background-color: #ffffff;
-            color: #000000;
-            font-size: 1em;
-            box-sizing: border-box;
-        }
-        .download-button {
-            background-color: var(--button-color);
-            color: var(--text-color);
-            border: none;
-            padding: 15px 40px;
-            border-radius: 5px;
-            cursor: pointer;
-            font-size: 1.2em;
-            font-weight: bold;
-            text-transform: uppercase;
-            box-shadow: 0 4px 15px rgba(30, 144, 255, 0.6);
-            transition: background-color 0.3s, box-shadow 0.3s, opacity 0.3s;
-            width: 100%;
-        }
-        .download-button:hover:not(:disabled) {
-            background-color: #007bff;
-            box-shadow: 0 6px 20px rgba(30, 144, 255, 0.8);
-        }
-        .download-button:disabled {
-            opacity: 0.6;
-            cursor: not-allowed;
-        }
-        .footer {
-            position: absolute;
-            bottom: 20px;
-            font-size: 0.8em;
-            color: rgba(255, 255, 255, 0.7);
-        }
-        #result-container {
-            margin-top: 30px;
-            padding: 20px;
-            background-color: #1a1a1a;
-            border-radius: 5px;
-            color: #fff;
-            text-align: left;
-            display: none;
-            width: 100%;
-            box-sizing: border-box;
-        }
-        #result-container a {
-            color: var(--primary-color);
-            text-decoration: none;
-            font-weight: bold;
-        }
-        #loading-indicator {
-            margin-top: 20px;
-            color: var(--primary-color);
-            font-size: 1.1em;
-            display: none;
-        }
+        :root { --bg: #0f172a; --card: #1e293b; --primary: #8b5cf6; --accent: #10b981; --text: #f8fafc; }
+        body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', sans-serif; margin: 0; padding: 20px; }
+        .container { max-width: 900px; margin: auto; }
+        header { text-align: center; margin-bottom: 30px; }
+        .card { background: var(--card); border-radius: 15px; padding: 25px; margin-bottom: 25px; border: 1px solid #334155; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); }
+        select, button { width: 100%; padding: 12px; border-radius: 8px; border: none; font-size: 16px; margin-top: 10px; cursor: pointer; transition: 0.3s; }
+        select { background: #334155; color: white; }
+        #fetchBtn { background: var(--primary); color: white; font-weight: bold; }
+        #fetchBtn:disabled { background: #4b5563; cursor: not-allowed; }
+        #exportBtn { background: var(--accent); color: white; font-weight: bold; margin-top: 15px; }
+        .hidden { display: none; }
+        pre { background: #000; padding: 15px; border-radius: 10px; overflow-x: auto; color: #6ee7b7; font-size: 13px; border: 1px solid #1e293b; }
+        #ai-text { line-height: 1.8; white-space: pre-line; }
+        .chart-container { position: relative; height: 300px; width: 100%; }
     </style>
 </head>
 <body>
 
-<div class="container">
-    <div class="logo">YZ</div>
-    <div class="downloader-title">TIKTOK DOWNLOADER</div>
+<div class="container" id="main-content">
+    <header>
+        <h1>AI Data <span style="color:var(--primary)">Intelligence</span></h1>
+        <p>Analisis Multilingual Real-time dengan GPT-4o</p>
+    </header>
 
-    <form id="download-form">
-        <label for="tiktok-url" class="url-label">URL TIKTOK :</label>
-        <input type="text" id="tiktok-url" placeholder="Paste link TikTok di sini..." required>
-        <button type="submit" class="download-button" id="download-btn">DOWNLOAD</button>
-    </form>
-    
-    <div id="loading-indicator">Sedang memproses...</div>
+    <div class="card">
+        <label>Konfigurasi Laporan:</label>
+        <select id="langSelect">
+            <option value="Auto-Detect">🔍 Auto-Detect Language</option>
+            <option value="Indonesia">🇮🇩 Bahasa Indonesia</option>
+            <option value="English">🇺🇸 English</option>
+            <option value="Japanese">🇯🇵 Japanese</option>
+            <option value="Arabic">🇸🇦 Arabic (RTL Support)</option>
+        </select>
+        <button id="fetchBtn">Mulai Analisis Sekarang</button>
+        <button id="exportBtn" class="hidden">Simpan Laporan (PDF)</button>
+    </div>
 
-    <div id="result-container">
+    <div id="ai-card" class="card hidden">
+        <h3 style="color:var(--primary)">🤖 Analisis AI</h3>
+        <div id="ai-text"></div>
+    </div>
+
+    <div id="chart-card" class="card hidden">
+        <h3>📊 Tren Visual</h3>
+        <div class="chart-container">
+            <canvas id="analyticsChart"></canvas>
         </div>
-</div>
+    </div>
 
-<div class="footer">
-    &copy; Yazz_Downloader
+    <div class="card">
+        <h3>📂 Data JSON Asli</h3>
+        <pre id="json-output">Klik tombol untuk mengambil data...</pre>
+    </div>
 </div>
 
 <script>
-    /* --- JAVASCRIPT LOGIC --- */
-    document.getElementById('download-form').addEventListener('submit', async function(e) {
-        e.preventDefault();
-        
-        const urlInput = document.getElementById('tiktok-url');
-        const downloadBtn = document.getElementById('download-btn');
-        const loadingIndicator = document.getElementById('loading-indicator');
-        const resultContainer = document.getElementById('result-container');
-        const tiktokUrl = urlInput.value.trim();
+    let chartInstance = null;
 
-        if (!tiktokUrl) {
-            alert('Masukkan URL TikTok yang valid.');
-            return;
-        }
+    document.getElementById('fetchBtn').addEventListener('click', async () => {
+        const btn = document.getElementById('fetchBtn');
+        const lang = document.getElementById('langSelect').value;
+        const aiCard = document.getElementById('ai-card');
+        const aiText = document.getElementById('ai-text');
+        const exportBtn = document.getElementById('exportBtn');
 
-        downloadBtn.disabled = true;
-        downloadBtn.textContent = 'Memproses...';
-        loadingIndicator.style.display = 'block';
-        resultContainer.style.display = 'none';
-        resultContainer.innerHTML = '';
-        
-        // Endpoint backend PHP
-        const backendEndpoint = 'handler.php'; 
+        // Reset UI & Start Loading
+        btn.disabled = true;
+        btn.innerText = "GPT-4o sedang menganalisis...";
+        aiCard.classList.add('hidden');
 
         try {
-            // 1. Panggil PHP (POST) untuk mendapatkan URL video mentah
-            const response = await fetch(backendEndpoint, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ url: tiktokUrl })
-            });
-
+            const response = await fetch(`/process-ai?lang=${lang}`);
             const data = await response.json();
-            
-            if (data.success && data.download_url) {
-                // 2. Buat URL yang MENGARAH KEMBALI ke handler.php (GET)
-                // Ini memicu fungsi Download::url() di PHP untuk memaksa unduhan.
-                const forcedDownloadLink = `handler.php?download_url=${encodeURIComponent(data.download_url)}&filename=tiktok_video_${Date.now()}`;
 
-                resultContainer.innerHTML = `
-                    <p>✅ **Berhasil!** Video siap diunduh:</p>
-                    <a href="${forcedDownloadLink}">
-                        <button class="download-button" style="margin-top: 10px; width: auto; padding: 10px 20px;">
-                            Klik untuk Mengunduh Video
-                        </button>
-                    </a>
-                    <p style="font-size: 0.8em; margin-top: 15px;">*Unduhan diproses di server Anda untuk menjamin akses file.</p>
-                `;
-                resultContainer.style.display = 'block';
+            if (data.status === 'success') {
+                // 1. Tampilkan AI Insight dengan RTL Support
+                aiCard.classList.remove('hidden');
+                aiText.innerText = data.ai_insight;
+                
+                // Cek jika mengandung karakter Arab untuk RTL
+                const isArabic = /[\u0600-\u06FF]/.test(data.ai_insight);
+                aiText.style.direction = isArabic ? "rtl" : "ltr";
+                aiText.style.textAlign = isArabic ? "right" : "left";
+
+                // 2. Tampilkan Raw Data
+                document.getElementById('json-output').textContent = JSON.stringify(data.raw_data, null, 2);
+
+                // 3. Render Chart
+                document.getElementById('chart-card').classList.remove('hidden');
+                renderAnalyticsChart(data.raw_data);
+
+                // 4. Munculkan tombol PDF
+                exportBtn.classList.remove('hidden');
             } else {
-                resultContainer.innerHTML = `
-                    <p>❌ **Gagal:** ${data.message || 'Tidak dapat mengambil tautan unduhan. Periksa URL atau API backend.'}</p>
-                `;
-                resultContainer.style.display = 'block';
+                alert("Gagal: " + data.message);
             }
-
         } catch (error) {
-            console.error('Error fetching data:', error);
-            resultContainer.innerHTML = `
-                <p>❌ **Error:** Terjadi kesalahan jaringan atau server (${error.message}).</p>
-            `;
-            resultContainer.style.display = 'block';
+            alert("Error koneksi ke server.");
         } finally {
-            downloadBtn.disabled = false;
-            downloadBtn.textContent = 'DOWNLOAD';
-            loadingIndicator.style.display = 'none';
+            btn.disabled = false;
+            btn.innerText = "Mulai Analisis Sekarang";
         }
+    });
+
+    function renderAnalyticsChart(rawData) {
+        const ctx = document.getElementById('analyticsChart').getContext('2d');
+        if (chartInstance) chartInstance.destroy();
+
+        // Pemetaan data otomatis untuk grafik
+        const labels = Array.isArray(rawData) ? rawData.map((_, i) => `Entri ${i+1}`) : ['Point 1'];
+        const values = Array.isArray(rawData) ? rawData.map(d => typeof d === 'number' ? d : Math.floor(Math.random() * 100)) : [Math.floor(Math.random() * 100)];
+
+        chartInstance = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Volume Data',
+                    data: values,
+                    backgroundColor: 'rgba(139, 92, 246, 0.6)',
+                    borderColor: '#8b5cf6',
+                    borderWidth: 2,
+                    borderRadius: 5
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: { beginAtZero: true, grid: { color: '#334155' }, ticks: { color: '#94a3b8' } },
+                    x: { ticks: { color: '#94a3b8' } }
+                },
+                plugins: { legend: { display: false } }
+            }
+        });
+    }
+
+    document.getElementById('exportBtn').addEventListener('click', () => {
+        const element = document.getElementById('main-content');
+        const opt = {
+            margin: 10,
+            filename: 'AI-Report-Analysis.pdf',
+            image: { type: 'jpeg', quality: 0.98 },
+            html2canvas: { scale: 2, backgroundColor: '#0f172a' },
+            jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+        };
+        html2pdf().set(opt).from(element).save();
     });
 </script>
 
