@@ -5,21 +5,21 @@ from flask import Flask, render_template, jsonify, request, session, redirect, u
 from functools import wraps
 
 app = Flask(__name__)
-app.secret_key = "KUNCI_RAHASIA_KOMPLEKS_2025" # Ganti string ini untuk keamanan sesi
+app.secret_key = "SECRET_KEY_2025"
 
-# 1. Inisialisasi Database SQLite (Arsip Jangka Panjang)
+# Inisialisasi Database SQLite
 def init_db():
     conn = sqlite3.connect('chat_history.db')
     c = conn.cursor()
-    c.execute('''CREATE TABLE IF NOT EXISTS messages 
+    c.execute('''CREATE TABLE IF NOT EXISTS chat_logs 
                  (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id TEXT, role TEXT, content TEXT)''')
     conn.commit()
     conn.close()
 
 init_db()
 
-# 2. Sistem Keamanan Login (Username: admin, Password: password123)
-USERS = {"admin": "password123"}
+# Login Guard
+USERS = {"admin": "admin123"}
 
 def login_required(f):
     @wraps(f)
@@ -31,55 +31,53 @@ def login_required(f):
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
-        u, p = request.form.get('username'), request.form.get('password')
+        u, p = request.form.get('u'), request.form.get('p')
         if USERS.get(u) == p:
             session['user'] = u
-            return redirect(url_for('home'))
-        return "Login Gagal! Username atau Password salah."
-    return '''<body style="background:#0b0e14;color:white;display:flex;justify-content:center;align-items:center;height:100vh;font-family:sans-serif;">
-              <form method="post" style="background:#161b22;padding:30px;border-radius:10px;border:1px solid #30363d;width:300px;">
-              <h2 style="text-align:center;">🔐 AI Admin Dashboard</h2>
-              <input type="text" name="username" placeholder="Username" required style="width:100%;padding:10px;margin:10px 0;background:#0d1117;color:white;border:1px solid #30363d;">
-              <input type="password" name="password" placeholder="Password" required style="width:100%;padding:10px;margin:10px 0;background:#0d1117;color:white;border:1px solid #30363d;">
-              <button type="submit" style="width:100%;padding:12px;background:#238636;color:white;border:none;border-radius:5px;cursor:pointer;font-weight:bold;">LOGIN</button>
+            return redirect(url_for('index'))
+    return '''<body style="background:#0d1117;color:white;display:flex;justify-content:center;align-items:center;height:100vh;font-family:sans-serif;">
+              <form method="post" style="background:#161b22;padding:30px;border-radius:8px;border:1px solid #30363d;">
+              <h2>🔒 AI Secure Login</h2>
+              <input type="text" name="u" placeholder="Username" required style="width:100%;padding:10px;margin-bottom:10px;"><br>
+              <input type="password" name="p" placeholder="Password" required style="width:100%;padding:10px;margin-bottom:10px;"><br>
+              <button type="submit" style="width:100%;padding:10px;background:#238636;color:white;border:none;cursor:pointer;">Masuk</button>
               </form></body>'''
 
 @app.route('/')
 @login_required
-def home():
+def index():
     return render_template('index.html')
 
-# 3. Endpoint Chat Utama (Proxy ke host.optikl.ink)
 @app.route('/chat', methods=['POST'])
 @login_required
 def chat():
-    user_msg = request.json.get('message')
-    full_context = request.json.get('messages') # Menerima 200 pesan dari frontend
     user_id = "1234"
-
-    api_url = "https://host.optikl.ink/ai/gpt4"
-    payload = {
-        "messages": full_context,
-        "user_id": user_id
-    }
+    data = request.json
+    messages = data.get('messages', [])
     
+    # 1. Simpan pesan User ke DB
+    last_user_msg = messages[-1]['content']
+    conn = sqlite3.connect('chat_history.db')
+    c = conn.cursor()
+    c.execute("INSERT INTO chat_logs (user_id, role, content) VALUES (?, ?, ?)", (user_id, 'user', last_user_msg))
+    
+    # 2. Kirim ke API Eksternal (host.optikl.ink)
     try:
-        # Panggil API AI Eksternal
-        response = requests.post(api_url, json=payload, timeout=30)
-        data = response.json()
-        ai_reply = data.get('answer') or data.get('message') or "No response"
+        api_url = "https://host.optikl.ink/ai/gpt4"
+        payload = {"messages": messages, "user_id": user_id}
+        response = requests.post(api_url, json=payload, timeout=60)
+        ai_res = response.json()
         
-        # Simpan History ke Database lokal
-        conn = sqlite3.connect('chat_history.db')
-        c = conn.cursor()
-        c.execute("INSERT INTO messages (user_id, role, content) VALUES (?, 'user', ?)", (user_id, user_msg))
-        c.execute("INSERT INTO messages (user_id, role, content) VALUES (?, 'assistant', ?)", (user_id, ai_reply))
+        reply = ai_res.get('answer') or ai_res.get('message') or "No response"
+        
+        # 3. Simpan jawaban AI ke DB
+        c.execute("INSERT INTO chat_logs (user_id, role, content) VALUES (?, ?, ?)", (user_id, 'assistant', reply))
         conn.commit()
-        conn.close()
-        
-        return jsonify({"reply": ai_reply})
+        return jsonify({"reply": reply})
     except Exception as e:
-        return jsonify({"reply": f"Terjadi kesalahan koneksi: {str(e)}"})
+        return jsonify({"reply": f"Error: {str(e)}"}), 500
+    finally:
+        conn.close()
 
 @app.route('/logout')
 def logout():
@@ -87,4 +85,4 @@ def logout():
     return redirect(url_for('login'))
 
 if __name__ == '__main__':
-    app.run(debug=True, port=5000)
+    app.run(debug=True)
