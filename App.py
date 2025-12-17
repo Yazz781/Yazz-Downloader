@@ -1,24 +1,30 @@
 import os
+import requests
+import sqlite3
 from flask import Flask, render_template, jsonify, request, session, redirect, url_for
 from functools import wraps
-import requests
-from openai import OpenAI
 
 app = Flask(__name__)
-app.secret_key = "RAHASIA_NEGARA_2025" # Ganti dengan string acak untuk keamanan
+app.secret_key = "KUNCI_RAHASIA_KOMPLEKS_2025" # Ganti string ini untuk keamanan sesi
 
-# API Key OpenAI
-client = OpenAI(api_key="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")
+# 1. Inisialisasi Database SQLite (Arsip Jangka Panjang)
+def init_db():
+    conn = sqlite3.connect('chat_history.db')
+    c = conn.cursor()
+    c.execute('''CREATE TABLE IF NOT EXISTS messages 
+                 (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id TEXT, role TEXT, content TEXT)''')
+    conn.commit()
+    conn.close()
 
-# Database User Sederhana (Username: admin, Password: password123)
+init_db()
+
+# 2. Sistem Keamanan Login (Username: admin, Password: password123)
 USERS = {"admin": "password123"}
-last_data_context = {}
 
 def login_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        if "user" not in session:
-            return redirect(url_for("login"))
+        if "user" not in session: return redirect(url_for("login"))
         return f(*args, **kwargs)
     return decorated_function
 
@@ -29,50 +35,51 @@ def login():
         if USERS.get(u) == p:
             session['user'] = u
             return redirect(url_for('home'))
-        return "Login Gagal! Username/Password salah."
-    return render_template('login.html') # Buat file login sederhana atau gunakan string HTML
+        return "Login Gagal! Username atau Password salah."
+    return '''<body style="background:#0b0e14;color:white;display:flex;justify-content:center;align-items:center;height:100vh;font-family:sans-serif;">
+              <form method="post" style="background:#161b22;padding:30px;border-radius:10px;border:1px solid #30363d;width:300px;">
+              <h2 style="text-align:center;">🔐 AI Admin Dashboard</h2>
+              <input type="text" name="username" placeholder="Username" required style="width:100%;padding:10px;margin:10px 0;background:#0d1117;color:white;border:1px solid #30363d;">
+              <input type="password" name="password" placeholder="Password" required style="width:100%;padding:10px;margin:10px 0;background:#0d1117;color:white;border:1px solid #30363d;">
+              <button type="submit" style="width:100%;padding:12px;background:#238636;color:white;border:none;border-radius:5px;cursor:pointer;font-weight:bold;">LOGIN</button>
+              </form></body>'''
 
 @app.route('/')
 @login_required
 def home():
     return render_template('index.html')
 
-@app.route('/process-ai')
-@login_required
-def process_ai():
-    global last_data_context
-    lang = request.args.get('lang', 'Indonesia')
-    try:
-        res = requests.get("https://host.optikl.ink/data/data", timeout=10)
-        last_data_context = res.json()
-        
-        response = client.chat.completions.create(
-            model="gpt-4o",
-            messages=[
-                {"role": "system", "content": f"Analis data profesional. Tulis laporan mendalam dalam Bahasa {lang}. Gunakan poin-poin penting."},
-                {"role": "user", "content": f"Data: {str(last_data_context)}"}
-            ]
-        )
-        return jsonify({"status": "success", "ai_insight": response.choices[0].message.content, "raw_data": last_data_context})
-    except Exception as e:
-        return jsonify({"status": "error", "message": str(e)})
-
+# 3. Endpoint Chat Utama (Proxy ke host.optikl.ink)
 @app.route('/chat', methods=['POST'])
 @login_required
 def chat():
     user_msg = request.json.get('message')
+    full_context = request.json.get('messages') # Menerima 200 pesan dari frontend
+    user_id = "1234"
+
+    api_url = "https://host.optikl.ink/ai/gpt4"
+    payload = {
+        "messages": full_context,
+        "user_id": user_id
+    }
+    
     try:
-        # Simulasi Web Search & AI Synthesis
-        response = client.chat.completions.create(
-            model="gpt-4o",
-            messages=[
-                {"role": "system", "content": f"Anda adalah AI Peneliti. Gunakan konteks data ini: {str(last_data_context)}. Jika pertanyaan di luar data, cari informasi faktual dan sebutkan sumbernya."},
-                {"role": "user", "content": user_msg}
-            ]
-        )
-        return jsonify({"reply": response.choices[0].message.content})
-    except:
-        return jsonify({"reply": "Maaf, sistem AI sedang sibuk."})
+        # Panggil API AI Eksternal
+        response = requests.post(api_url, json=payload, timeout=30)
+        data = response.json()
+        ai_reply = data.get('answer') or data.get('message') or "No response"
+        
+        # Simpan History ke Database lokal
+        conn = sqlite3.connect('chat_history.db')
+        c = conn.cursor()
+        c.execute("INSERT INTO messages (user_id, role, content) VALUES (?, 'user', ?)", (user_id, user_msg))
+        c.execute("INSERT INTO messages (user_id, role, content) VALUES (?, 'assistant', ?)", (user_id, ai_reply))
+        conn.commit()
+        conn.close()
+        
+        return jsonify({"reply": ai_reply})
+    except Exception as e:
+        return jsonify({"reply": f"Terjadi kesalahan koneksi: {str(e)}"})
 
 @app.route('/logout')
 def logout():
@@ -80,4 +87,4 @@ def logout():
     return redirect(url_for('login'))
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(debug=True, port=5000)
