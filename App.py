@@ -1,88 +1,127 @@
-import os
-import requests
-import sqlite3
-from flask import Flask, render_template, jsonify, request, session, redirect, url_for
-from functools import wraps
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <title>AI Intelligent Master Dashboard</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <style>
+        :root { --bg: #0d1117; --card: #161b22; --primary: #58a6ff; --text: #c9d1d9; --green: #238636; }
+        body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', sans-serif; margin: 0; display: flex; flex-direction: column; height: 100vh; }
+        header { padding: 15px 25px; background: #161b22; border-bottom: 1px solid #30363d; display: flex; justify-content: space-between; align-items: center; }
+        #chat-container { flex: 1; overflow-y: auto; padding: 25px; display: flex; flex-direction: column; gap: 20px; }
+        .msg { max-width: 80%; padding: 15px 20px; border-radius: 12px; line-height: 1.6; position: relative; white-space: pre-wrap; }
+        .user { align-self: flex-end; background: #1f6feb; color: white; border-bottom-right-radius: 2px; }
+        .ai { align-self: flex-start; background: #30363d; border: 1px solid #484f58; border-bottom-left-radius: 2px; }
+        .btn-group { margin-top: 10px; display: flex; gap: 10px; }
+        .action-btn { font-size: 11px; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; color: white; }
+        .input-area { background: #161b22; padding: 25px; border-top: 1px solid #30363d; display: flex; gap: 15px; }
+        input { flex: 1; padding: 15px; background: #0d1117; border: 1px solid #30363d; color: white; border-radius: 8px; font-size: 16px; }
+        button#sendBtn { padding: 0 30px; background: var(--green); color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; }
+        #typing { font-size: 12px; color: #8b949e; padding: 10px 25px; display: none; }
+    </style>
+</head>
+<body>
 
-app = Flask(__name__)
-app.secret_key = "SECRET_KEY_2025"
+<header>
+    <div style="font-size: 20px; font-weight: bold;">🚀 AI COMMANDER <span style="font-weight: normal; color: #8b949e;">v3.0</span></div>
+    <div>
+        <button onclick="downloadFullPDF()" style="background:#58a6ff; color:black; border:none; padding:8px 15px; border-radius:5px; font-weight:bold; cursor:pointer; margin-right:10px;">PDF REPORT</button>
+        <a href="/logout" style="color:#f85149; text-decoration:none; font-size:14px;">Logout</a>
+    </div>
+</header>
 
-# Inisialisasi Database SQLite
-def init_db():
-    conn = sqlite3.connect('chat_history.db')
-    c = conn.cursor()
-    c.execute('''CREATE TABLE IF NOT EXISTS chat_logs 
-                 (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id TEXT, role TEXT, content TEXT)''')
-    conn.commit()
-    conn.close()
+<div id="chat-container"></div>
+<div id="typing">AI sedang menyusun respon 1000 kata...</div>
 
-init_db()
+<div class="input-area">
+    <input type="text" id="userInput" placeholder="Tulis instruksi atau tanya data JSON..." autocomplete="off">
+    <button id="sendBtn" onclick="sendMessage()">KIRIM</button>
+</div>
 
-# Login Guard
-USERS = {"admin": "admin123"}
+<script>
+    // Memori Jangka Panjang (Sliding Window 200)
+    let history = JSON.parse(localStorage.getItem('persistent_history')) || [
+        { "role": "system", "content": "Good Person. Berikan respon mendalam, teknis, dan lengkap hingga 1000 kata jika diperlukan." }
+    ];
 
-def login_required(f):
-    @wraps(f)
-    def decorated_function(*args, **kwargs):
-        if "user" not in session: return redirect(url_for("login"))
-        return f(*args, **kwargs)
-    return decorated_function
+    window.onload = () => {
+        history.forEach(m => { if(m.role !== 'system') renderMsg(m.content, m.role); });
+    };
 
-@app.route('/login', methods=['GET', 'POST'])
-def login():
-    if request.method == 'POST':
-        u, p = request.form.get('u'), request.form.get('p')
-        if USERS.get(u) == p:
-            session['user'] = u
-            return redirect(url_for('index'))
-    return '''<body style="background:#0d1117;color:white;display:flex;justify-content:center;align-items:center;height:100vh;font-family:sans-serif;">
-              <form method="post" style="background:#161b22;padding:30px;border-radius:8px;border:1px solid #30363d;">
-              <h2>🔒 AI Secure Login</h2>
-              <input type="text" name="u" placeholder="Username" required style="width:100%;padding:10px;margin-bottom:10px;"><br>
-              <input type="password" name="p" placeholder="Password" required style="width:100%;padding:10px;margin-bottom:10px;"><br>
-              <button type="submit" style="width:100%;padding:10px;background:#238636;color:white;border:none;cursor:pointer;">Masuk</button>
-              </form></body>'''
+    async function sendMessage() {
+        const input = document.getElementById('userInput');
+        const text = input.value.trim();
+        if(!text) return;
 
-@app.route('/')
-@login_required
-def index():
-    return render_template('index.html')
+        renderMsg(text, 'user');
+        history.push({ "role": "user", "content": text });
+        input.value = '';
 
-@app.route('/chat', methods=['POST'])
-@login_required
-def chat():
-    user_id = "1234"
-    data = request.json
-    messages = data.get('messages', [])
-    
-    # 1. Simpan pesan User ke DB
-    last_user_msg = messages[-1]['content']
-    conn = sqlite3.connect('chat_history.db')
-    c = conn.cursor()
-    c.execute("INSERT INTO chat_logs (user_id, role, content) VALUES (?, ?, ?)", (user_id, 'user', last_user_msg))
-    
-    # 2. Kirim ke API Eksternal (host.optikl.ink)
-    try:
-        api_url = "https://host.optikl.ink/ai/gpt4"
-        payload = {"messages": messages, "user_id": user_id}
-        response = requests.post(api_url, json=payload, timeout=60)
-        ai_res = response.json()
-        
-        reply = ai_res.get('answer') or ai_res.get('message') or "No response"
-        
-        # 3. Simpan jawaban AI ke DB
-        c.execute("INSERT INTO chat_logs (user_id, role, content) VALUES (?, ?, ?)", (user_id, 'assistant', reply))
-        conn.commit()
-        return jsonify({"reply": reply})
-    except Exception as e:
-        return jsonify({"reply": f"Error: {str(e)}"}), 500
-    finally:
-        conn.close()
+        // Jaga limit 200 pesan
+        if(history.length > 201) history.splice(1, 1);
 
-@app.route('/logout')
-def logout():
-    session.pop('user', None)
-    return redirect(url_for('login'))
+        document.getElementById('typing').style.display = 'block';
 
-if __name__ == '__main__':
-    app.run(debug=True)
+        try {
+            const res = await fetch('/chat', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ messages: history })
+            });
+            const data = await res.json();
+            
+            renderMsg(data.reply, 'assistant');
+            history.push({ "role": "assistant", "content": data.reply });
+            localStorage.setItem('persistent_history', JSON.stringify(history));
+        } catch (e) {
+            renderMsg("Error: Gagal memproses data besar.", 'assistant');
+        } finally {
+            document.getElementById('typing').style.display = 'none';
+        }
+    }
+
+    function renderMsg(text, role) {
+        const container = document.getElementById('chat-container');
+        const div = document.createElement('div');
+        div.className = `msg ${role === 'user' ? 'user' : 'ai'}`;
+        div.innerText = text;
+
+        if(role === 'assistant') {
+            const btnGroup = document.createElement('div');
+            btnGroup.className = "btn-group";
+            
+            const btnJSON = document.createElement('button');
+            btnJSON.innerText = "📥 Download JSON";
+            btnJSON.className = "action-btn";
+            btnJSON.style.background = "#238636";
+            btnJSON.onclick = () => {
+                const blob = new Blob([text], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `ai_data_${Date.now()}.json`;
+                a.click();
+            };
+            
+            btnGroup.appendChild(btnJSON);
+            div.appendChild(btnGroup);
+        }
+
+        container.appendChild(div);
+        container.scrollTop = container.scrollHeight;
+    }
+
+    function downloadFullPDF() {
+        const element = document.getElementById('chat-container');
+        html2pdf().from(element).set({
+            margin: 10,
+            filename: 'AI-Full-Report.pdf',
+            html2canvas: { scale: 2, backgroundColor: '#0d1117' },
+            jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+        }).save();
+    }
+
+    document.getElementById('userInput').addEventListener('keypress', (e) => { if(e.key === 'Enter') sendMessage(); });
+</script>
+</body>
+</html>
