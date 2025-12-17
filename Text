@@ -1,0 +1,5 @@
+/ai-app
+├── app.py
+├── chat_history.db (Otomatis)
+└── templates/
+    └── index.html
